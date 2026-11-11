@@ -107,7 +107,11 @@ assert _total_slots <= MAX_CONTACTS_PER_PAIR, (
 
 # http://stereopsis.com/radix.html
 @wp.func_native("""
+#if defined(__METAL_VERSION__)
+uint32_t i = as_type<uint32_t>(f);
+#else
 uint32_t i = reinterpret_cast<uint32_t&>(f);
+#endif
 uint32_t mask = (uint32_t)(-(int)(i >> 31)) | 0x80000000;
 return i ^ mask;
 """)
