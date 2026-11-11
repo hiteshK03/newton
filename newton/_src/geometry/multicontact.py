@@ -287,7 +287,7 @@ def intersection_point(trim_seg_start: wp.vec2, trim_seg_end: wp.vec2, a: wp.vec
 
 
 @wp.func
-def insert_vec2(arr: wp.array[wp.vec2], arr_count: int, index: int, element: wp.vec2):
+def insert_vec2(arr: Any, arr_count: int, index: int, element: wp.vec2):
     """
     Insert an element into an array at the specified index, shifting elements to the right.
 
@@ -308,7 +308,7 @@ def insert_vec2(arr: wp.array[wp.vec2], arr_count: int, index: int, element: wp.
 def trim_in_place(
     trim_seg_start: wp.vec2,
     trim_seg_end: wp.vec2,
-    loop: wp.array[wp.vec2],
+    loop: Any,
     loop_count: int,
 ) -> int:
     """
@@ -397,9 +397,9 @@ def trim_in_place(
 
 @wp.func
 def trim_all_in_place(
-    trim_poly: wp.array[wp.vec2],
+    trim_poly: Any,
     trim_poly_count: int,
-    loop: wp.array[wp.vec2],
+    loop: Any,
     loop_count: int,
 ) -> int:
     """
@@ -485,7 +485,7 @@ def trim_all_in_place(
 
 
 @wp.func
-def approx_max_quadrilateral_area_with_calipers(hull: wp.array[wp.vec2], hull_count: int) -> wp.vec4i:
+def approx_max_quadrilateral_area_with_calipers(hull: Any, hull_count: int) -> wp.vec4i:
     """
     Finds an approximate maximum area quadrilateral inside a convex hull in O(n) time
     using the Rotating Calipers algorithm to find the hull's diameter.
@@ -581,7 +581,7 @@ def approx_max_quadrilateral_area_with_calipers(hull: wp.array[wp.vec2], hull_co
 
 
 @wp.func
-def remove_zero_length_edges(loop: wp.array[wp.vec2], loop_count: int, eps: float) -> int:
+def remove_zero_length_edges(loop: Any, loop_count: int, eps: float) -> int:
     """
     Remove zero-length edges from a polygon loop.
 
@@ -621,7 +621,7 @@ def remove_zero_length_edges(loop: wp.array[wp.vec2], loop_count: int, eps: floa
 
 
 @wp.func
-def add_avoid_duplicates_vec2(arr: wp.array[wp.vec2], arr_count: int, vec: wp.vec2, eps: float) -> tuple[int, bool]:
+def add_avoid_duplicates_vec2(arr: Any, arr_count: int, vec: wp.vec2, eps: float) -> tuple[int, bool]:
     """
     Add a vector to an array, avoiding duplicates.
 
@@ -674,9 +674,9 @@ def create_build_manifold(support_func: Any, writer_func: Any, post_process_cont
 
     @wp.func
     def extract_4_point_contact_manifolds(
-        m_a: wp.array[wp.vec2],
+        m_a: Any,
         m_a_count: int,
-        m_b: wp.array[wp.vec2],
+        m_b: Any,
         m_b_count: int,
         normal_local: wp.vec3,
         cross_vector_1: wp.vec3,
@@ -840,7 +840,11 @@ def create_build_manifold(support_func: Any, writer_func: Any, post_process_cont
 
         # Allocate buffers: 5 for A, up to 10 for B (5 + clipping headroom)
         b_buffer = wp.zeros(shape=(10,), dtype=wp.vec2f)
-        a_buffer = wp.array(ptr=b_buffer.ptr + wp.uint64(5 * 8), shape=(5,), dtype=wp.vec2f)
+        # Metal-compat (hiteshK03/warp issue #3): a separate fixedarray instead of a
+        # device-array alias into b_buffer.s stack storage (illegal on Metal: a device
+        # pointer cannot address thread memory). Sized (10,) to match b_buffer so both
+        # call sites hit one Any-specialization; a_count<=5 guards all reads/writes.
+        a_buffer = wp.zeros(shape=(10,), dtype=wp.vec2f)
 
         # --- Step 1: Find Contact Polygons using Perturbed Support Mapping ---
         # Shape A: support_func returns points in A-local frame directly, no quat_rotate needed.
