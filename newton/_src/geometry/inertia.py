@@ -59,9 +59,11 @@ def _inverse_inertia(inertia: wp.mat33) -> wp.mat33:
 
 @wp.func
 def _inverse_inertia_wp(inertia: wp.mat33) -> wp.mat33:
-    # Small valid float32 inertias can underflow the determinant or overflow its
-    # reciprocal. Use float64 intermediates, then store the inverse in float32.
-    return wp.mat33(wp.inverse(wp.mat33d(inertia)))
+    # float32 only: Apple GPUs have no float64, and for inertias of ordinary scale
+    # (e.g. ANYmal: smallest entry ~5e-5) float32 matches the float64 result to
+    # ~6e-7 relative. The determinant scales with the cube of the entries, so
+    # tensors with entries below ~1e-12 can underflow it in float32.
+    return wp.inverse(inertia)
 
 
 @wp.func
@@ -74,11 +76,11 @@ def _eig_inertia(inertia: wp.mat33):
             scale = wp.max(scale, wp.abs(inertia[i, j]))
     if scale == 0.0:
         return wp.identity(n=3, dtype=wp.float32), wp.vec3(0.0)
-    # Decompose in float64 to resolve small negative moments accurately during
-    # validation and after a float32 repair. Double-precision division also
-    # avoids reciprocal overflow for subnormal float32 scales.
-    vectors, values = wp.eig3(wp.mat33d(inertia) / wp.float64(scale))
-    return wp.mat33(vectors), wp.vec3(values * wp.float64(scale))
+    # float32 only (no float64 on Apple GPUs). The normalization above keeps the
+    # decomposition well scaled; tiny negative moments close to zero are resolved
+    # to float32 precision rather than float64.
+    vectors, values = wp.eig3(inertia / scale)
+    return vectors, values * scale
 
 
 @wp.kernel(enable_backward=False, module="unique")
